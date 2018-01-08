@@ -7,7 +7,7 @@ The comprehensive camera module for React Native. Including photographs, videos,
 - Pull Requests are welcome, if you open a pull request we will do our best to get to it in a timely manner
 - Pull Request Reviews and even more welcome! we need help testing, reviewing, and updating open PRs
 - If you are interested in contributing more actively, please contact me (same username on Twitter, Facebook, etc.) Thanks!
-- We are now on [Open Collective](https://opencollective.com/react-native-camera#sponsor)! Contributions are appreciated and will be used to fund core contributors. [more details](#open-collective) 
+- We are now on [Open Collective](https://opencollective.com/react-native-camera#sponsor)! Contributions are appreciated and will be used to fund core contributors. [more details](#open-collective)
 
 #### Breaking Changes
 ##### android build tools has been bumped to 25.0.2, please update (can be done via android cli or AndroidStudio)
@@ -16,6 +16,10 @@ The comprehensive camera module for React Native. Including photographs, videos,
 - if on react-native >= 0.40 `npm i react-native-camera@0.6`
 
 ##### Permissions
+To use the camera on Android you must ask for camera permission:
+```java
+  <uses-permission android:name="android.permission.CAMERA" />
+```
 To enable `video recording` feature you have to add the following code to the `AndroidManifest.xml`:
 ```java
   <uses-permission android:name="android.permission.RECORD_AUDIO"/>
@@ -41,7 +45,7 @@ To enable `video recording` feature you have to add the following code to the `A
 
 <!-- Include this only if you are planning to use the microphone for video recording -->
 <key>NSMicrophoneUsageDescription</key>
-<string>Your message to user when the microsphone is accessed for the first time</string>
+<string>Your message to user when the microphone is accessed for the first time</string>
 ```
 3. On Android, you require `buildToolsVersion` of `25.0.2+`. _This should easily and automatically be downloaded by Android Studio's SDK Manager._
 
@@ -128,11 +132,19 @@ class BadInstagramCloneApp extends Component {
           ref={(cam) => {
             this.camera = cam;
           }}
+	  onBarCodeRead={this.onBarCodeRead.bind(this)}
           style={styles.preview}
           aspect={Camera.constants.Aspect.fill}>
           <Text style={styles.capture} onPress={this.takePicture.bind(this)}>[CAPTURE]</Text>
         </Camera>
       </View>
+    );
+  }
+
+  onBarCodeRead(e) {
+    console.log(
+        "Barcode Found!",
+        "Type: " + e.type + "\nData: " + e.data
     );
   }
 
@@ -176,6 +188,12 @@ Values: `Camera.constants.Aspect.fit` or `"fit"`, `Camera.constants.Aspect.fill`
 
 The `aspect` property allows you to define how your viewfinder renders the camera's view. For instance, if you have a square viewfinder and you want to fill it entirely, you have two options: `"fill"`, where the aspect ratio of the camera's view is preserved by cropping the view or `"stretch"`, where the aspect ratio is skewed in order to fit the entire image inside the viewfinder. The other option is `"fit"`, which ensures the camera's entire view fits inside your viewfinder without altering the aspect ratio.
 
+#### `cropToPreview`
+
+Values: `true` or `false` (default)
+
+Will crop the captured image to match the content that is displayed in the preview view. Works on both `Android` and `iOS`. Will be ignored if `captureMode` is other then `Camera.constants.CaptureMode.still`.
+
 #### `iOS` `audio`
 
 Values: `true` (Boolean), `false` (default)
@@ -202,8 +220,6 @@ Values: `Camera.constants.CaptureQuality.high` or `"high"` (default), `Camera.co
 This property allows you to specify the quality output of the captured image or video. By default the quality is set to high.
 
 When choosing more-specific quality settings (1080p, 720p, 480p), note that each platform and device supports different valid picture/video sizes, and actual resolution within each of these quality settings might differ. There should not be too much variance (if any) for iOS; 1080p should give 1920x1080, 720p should give 1280x720, and 480p should give 640x480 (note that iOS 480p therefore is NOT the typical 16:9 HD aspect ratio, and the typically-HD camera preview screen may differ greatly in aspect from what you actually record!!). For Android, expect more variance: on most Androids, 1080p *should* give 1920x1080 and 720p *should* give 1280x720; however, 480p will at "best" be 853x480 (16:9 HD aspect ratio), but falls back/down to 800x480, 720x480, or "worse", depending on what is closest-but-less-than 853x480 and available on the actual device. If your application requires knowledge of the precise resolution of the output image/video, you might consider manually determine the actual resolution itself after capture has completed (particularly for 480p on Android).
-
-Android also supports `Camera.constants.CaptureQuality.preview` or `"preview"` which matches the output image to the same one used in the preview
 
 #### `type`
 
@@ -239,7 +255,7 @@ The following barcode types can be recognised:
 - `code39`
 - `code39mod43`
 - `code93`
-- `ean13`
+- `ean13` (`iOS` converts `upca` barcodes to `ean13` by adding a leading 0)
 - `ean8`
 - `pdf417`
 - `qr`
@@ -281,6 +297,15 @@ Android: This callback is not yet implemented. However, Android will
 automatically do tap-to-focus if the device supports auto-focus; there is
 currently no way to manage this from javascript.
 
+To get autofocus/tap to focus functionalities working correctly in android
+make sure that the proper permissions are set in your `AndroidManifest.xml`:
+```java
+    <uses-feature android:name="android.hardware.camera" />
+    <uses-feature android:name="android.hardware.camera.autofocus" />
+```
+
+
+
 #### `iOS` `defaultOnFocusComponent`
 
 Values:
@@ -311,8 +336,8 @@ If set to `true`, the image returned will be mirrored.
 If set to `true`, the image returned will be rotated to the _right way up_.  WARNING: It uses a significant amount of memory and my cause your application to crash if the device cannot provide enough RAM to perform the rotation.
 
 (_If you find that you need to use this option because your images are incorrectly oriented by default,
-could please submit a PR and include the make model of the device.  We believe that it's not 
-required functionality any more and would like to remove it._) 
+could please submit a PR and include the make model of the device.  We believe that it's not
+required functionality any more and would like to remove it._)
 
 ## Component instance methods
 
@@ -353,6 +378,14 @@ Returns whether or not the camera has flash capabilities.
 #### `stopCapture()`
 
 Ends the current capture session for video captures. Only applies when the current `captureMode` is `video`.
+
+#### `stopPreview()`
+
+Stops the camera preview from running, and natively will make the current capture session pause.
+
+#### `startPreview()`
+
+Starts the camera preview again if previously stopped.
 
 ## Component static methods
 

@@ -294,6 +294,10 @@ RCT_CUSTOM_VIEW_PROPERTY(mirrorImage, BOOL, RCTCamera) {
   self.mirrorImage = [RCTConvert BOOL:json];
 }
 
+RCT_CUSTOM_VIEW_PROPERTY(cropToPreview, BOOL, RCTCamera) {
+    self.cropToPreview = [RCTConvert BOOL:json];
+}
+
 RCT_CUSTOM_VIEW_PROPERTY(barCodeTypes, NSArray, RCTCamera) {
   self.barCodeTypes = [RCTConvert NSArray:json];
 }
@@ -377,6 +381,28 @@ RCT_EXPORT_METHOD(capture:(NSDictionary *)options
   else if (captureMode == RCTCameraCaptureModeVideo) {
     [self captureVideo:captureTarget options:options resolve:resolve reject:reject];
   }
+}
+
+RCT_EXPORT_METHOD(stopPreview) {
+#if TARGET_IPHONE_SIMULATOR
+    return;
+#endif
+    dispatch_async(self.sessionQueue, ^{
+        if ([self.session isRunning]) {
+            [self.session stopRunning];
+        }
+    });
+}
+
+RCT_EXPORT_METHOD(startPreview) {
+#if TARGET_IPHONE_SIMULATOR
+    return;
+#endif
+    dispatch_async(self.sessionQueue, ^{
+        if (![self.session isRunning]) {
+            [self.session startRunning];
+        }
+    });
 }
 
 RCT_EXPORT_METHOD(stopCapture) {
@@ -601,7 +627,7 @@ RCT_EXPORT_METHOD(hasFlash:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRej
 
           // create cgimage
           CGImageRef cgImage = CGImageSourceCreateImageAtIndex(source, 0, NULL);
-
+            
           // Rotate it
           CGImageRef rotatedCGImage;
           if ([options objectForKey:@"rotation"]) {
@@ -629,6 +655,22 @@ RCT_EXPORT_METHOD(hasFlash:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRej
             }
           } else {
             rotatedCGImage = cgImage;
+          }
+            
+          // Crop it
+          if (self.cropToPreview) {
+              CGSize viewportSize;
+              
+              if (UIInterfaceOrientationIsPortrait([[UIApplication sharedApplication] statusBarOrientation]))
+              {
+                  viewportSize = CGSizeMake(self.previewLayer.frame.size.height, self.previewLayer.frame.size.width);
+              } else {
+                  viewportSize = CGSizeMake(self.previewLayer.frame.size.width, self.previewLayer.frame.size.height);
+              }
+              
+              CGRect captureRect = CGRectMake(0, 0, CGImageGetWidth(rotatedCGImage), CGImageGetHeight(rotatedCGImage));
+              CGRect croppedSize = AVMakeRectWithAspectRatioInsideRect(viewportSize, captureRect);
+              rotatedCGImage = CGImageCreateWithImageInRect(rotatedCGImage, croppedSize);
           }
 
           // Erase stupid TIFF stuff
